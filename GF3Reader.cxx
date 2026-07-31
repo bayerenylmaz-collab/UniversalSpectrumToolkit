@@ -1,0 +1,10 @@
+#include "GF3Reader.h"
+#include "ByteUtils.h"
+#include <algorithm>
+#include <cmath>
+#include <sstream>
+namespace ust {
+std::string GF3Reader::name() const{return "GF3-like binary SPE reader";}
+bool GF3Reader::supportsExtension(const std::string& e) const{return e==".spe";}
+ReaderResult GF3Reader::tryRead(const std::string& path,const std::vector<unsigned char>& raw) const{ReaderResult r;r.readerName=name(); constexpr std::size_t header=40,bpv=4; if(raw.size()<=header){r.reason="File is too small for the validated GF3-like layout.";return r;} std::size_t payload=raw.size()-header; if(payload%bpv){r.reason="Payload after the 40-byte header is not divisible by 4.";return r;} std::size_t channels=payload/bpv; if(!isCommonChannelCount(channels)){r.reason="The inferred channel count is not a supported common MCA channel count.";return r;} std::vector<double> counts;counts.reserve(channels);std::size_t finite=0,nonneg=0,intlike=0;double maximum=0,sum=0; for(std::size_t i=0;i<channels;++i){double v=decodeValue(raw.data()+header+bpv*i,NumericType::Float32,ByteOrder::LittleEndian);counts.push_back(v);if(!std::isfinite(v))continue;++finite;if(v>=0)++nonneg;if(isIntegerLike(v))++intlike;maximum=std::max(maximum,v);sum+=v;} double n=double(channels),ff=finite/n,nf=nonneg/n,inf=intlike/n; bool ok=ff>0.9999&&nf>0.9999&&inf>0.99&&maximum>0&&maximum<1e12&&sum>0&&std::isfinite(sum); if(!ok){std::ostringstream m;m<<"The 40-byte/float32-LE layout failed structural checks (finite="<<ff<<", non-negative="<<nf<<", integer-like="<<inf<<").";r.reason=m.str();return r;} r.matched=true;r.score=100;r.reason="Matched the validated 40-byte header plus common-channel float32 little-endian layout.";r.data.counts=std::move(counts);r.data.rawBytes=raw;r.data.sourceFile=path;r.data.extension=extensionOf(path);r.data.detectedFormat="GF3-like binary SPE";r.data.readerName=name();r.data.numericType="float32";r.data.byteOrder="little-endian";r.data.decisionReason=r.reason;r.data.fileSize=raw.size();r.data.headerBytes=header;r.data.channelCount=channels;r.data.bytesPerValue=bpv;r.data.readerScore=r.score;r.data.valid=true;return r;}
+}

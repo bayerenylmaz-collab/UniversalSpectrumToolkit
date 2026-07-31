@@ -1,0 +1,9 @@
+*.so
+*.pcm
+*.d
+*_C.*
+*.root
+*.png
+*.pdf
+*.log
+*~

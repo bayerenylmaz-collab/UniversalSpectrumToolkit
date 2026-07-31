@@ -1,0 +1,5 @@
+#include "ReaderRegistry.h"
+#include <algorithm>
+#include <cmath>
+#include <sstream>
+namespace ust {void ReaderRegistry::registerReader(std::unique_ptr<IReader> r){if(r)readers_.push_back(std::move(r));} std::vector<ReaderResult> ReaderRegistry::runReaders(const std::string& p,const std::string& e,const std::vector<unsigned char>& raw) const{std::vector<ReaderResult> out;for(const auto& r:readers_)if(r->supportsExtension(e))out.push_back(r->tryRead(p,raw));return out;} bool ReaderRegistry::chooseWinner(const std::vector<ReaderResult>& rs,ReaderResult& w,std::string& msg) const{std::vector<ReaderResult> m;for(const auto& r:rs)if(r.matched&&r.data.valid)m.push_back(r);if(m.empty()){msg="No known reader matched.";return false;}std::sort(m.begin(),m.end(),[](const auto&a,const auto&b){return a.score>b.score;});if(m.size()>1&&std::abs(m[0].score-m[1].score)<1e-9){std::ostringstream s;s<<"Ambiguous known-reader result: "<<m[0].readerName<<" and "<<m[1].readerName<<" received equal scores.";msg=s.str();return false;}w=m.front();msg="Known reader selected: "+w.readerName;return true;}}
