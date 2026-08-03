@@ -3,12 +3,14 @@
 #include "ByteUtils.h"
 #include "AsciiSPEReader.h"
 #include "GF3Reader.h"
+#include "OrtecCHNReader.h"
 #include "ReaderRegistry.h"
 #include "GenericDetector.h"
 #include "RootWriter.h"
 
 #include "AsciiSPEReader.cxx"
 #include "GF3Reader.cxx"
+#include "OrtecCHNReader.cxx"
 #include "ReaderRegistry.cxx"
 #include "GenericDetector.cxx"
 #include "RootWriter.cxx"
@@ -53,6 +55,8 @@ bool convertOne(
         std::unique_ptr<IReader>(new AsciiSPEReader()));
     registry.registerReader(
         std::unique_ptr<IReader>(new GF3Reader()));
+    registry.registerReader(
+        std::unique_ptr<IReader>(new OrtecCHNReader()));
 
     const std::vector<ReaderResult> results =
         registry.runReaders(path, extension, rawBytes);
@@ -190,7 +194,7 @@ void universal_spectrum_to_root(
     }
 }
 
-// Convert every *.spe under a directory (non-recursive).
+// Convert every *.spe / *.chn under a directory (non-recursive).
 // Drawing is off by default for batch use.
 void universal_spectrum_batch(
     const char* directoryPath,
@@ -225,7 +229,8 @@ void universal_spectrum_batch(
         }
 
         const std::string name = file->GetName();
-        if (ust::extensionOf(name) != ".spe") {
+        const std::string extension = ust::extensionOf(name);
+        if (extension != ".spe" && extension != ".chn") {
             continue;
         }
 
@@ -261,14 +266,16 @@ void universal_spectrum_help() {
         << "  .L universal_spectrum_to_root.C+\n\n"
         << "Single file:\n"
         << "  universal_spectrum_to_root(\"file.spe\");\n"
+        << "  universal_spectrum_to_root(\"file.chn\");\n"
         << "  universal_spectrum_to_root(\"file.spe\", \"out.root\", false);\n"
         << "  universal_spectrum_to_root(\"file.spe\", \"\", false, true);  // force generic\n\n"
-        << "Batch directory (*.spe):\n"
+        << "Batch directory (*.spe, *.chn):\n"
         << "  universal_spectrum_batch(\"path/to/dir\");\n"
         << "  universal_spectrum_batch(\"path/to/dir\", false, true);\n\n"
         << "Known readers:\n"
         << "  - Tagged ASCII SPE (Ortec/Maestro $DATA:)\n"
         << "  - GF3-like binary SPE (40-byte header + float32 LE)\n"
+        << "  - Ortec binary CHN (32-byte header + uint32 counts)\n"
         << "Unknown formats are scanned and reported; they are not\n"
         << "silently converted unless forceGeneric=true.\n\n";
 }

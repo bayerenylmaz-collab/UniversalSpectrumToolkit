@@ -7,11 +7,13 @@
 #include "../ByteUtils.h"
 #include "../AsciiSPEReader.h"
 #include "../GF3Reader.h"
+#include "../OrtecCHNReader.h"
 #include "../ReaderRegistry.h"
 #include "../GenericDetector.h"
 
 #include "../AsciiSPEReader.cxx"
 #include "../GF3Reader.cxx"
+#include "../OrtecCHNReader.cxx"
 #include "../ReaderRegistry.cxx"
 #include "../GenericDetector.cxx"
 
@@ -40,12 +42,15 @@ int main() {
 
     const std::string asciiPath = "../samples/ortec_ascii.spe";
     const std::string gf3Path = "../samples/gf3_like.spe";
+    const std::string chnPath = "../samples/ortec_demo.chn";
 
     const auto asciiBytes = readAllBytes(asciiPath);
     const auto gf3Bytes = readAllBytes(gf3Path);
+    const auto chnBytes = readAllBytes(chnPath);
 
     AsciiSPEReader asciiReader;
     GF3Reader gf3Reader;
+    OrtecCHNReader chnReader;
 
     const ReaderResult asciiOnAscii =
         asciiReader.tryRead(asciiPath, asciiBytes);
@@ -81,11 +86,40 @@ int main() {
     expect(!asciiOnGf3.matched,
            "ASCII reader rejects binary SPE");
 
+    const ReaderResult chnOnChn =
+        chnReader.tryRead(chnPath, chnBytes);
+    expect(chnOnChn.matched, "CHN reader matches Ortec CHN");
+    expect(chnOnChn.data.channelCount == 256,
+           "CHN reader channel count is 256");
+    expect(chnOnChn.data.headerBytes == 32,
+           "CHN reader header is 32 bytes");
+    expect(std::abs(chnOnChn.data.liveTime - 100.0) < 1e-9,
+           "CHN reader live time is 100 s");
+    expect(std::abs(chnOnChn.data.realTime - 101.5) < 1e-9,
+           "CHN reader real time is 101.5 s");
+    expect(chnOnChn.data.hasEnergyCalibration,
+           "CHN reader energy calibration parsed");
+    expect(std::abs(chnOnChn.data.energyB - 1.25) < 1e-6,
+           "CHN reader energy slope is 1.25");
+    expect(chnOnChn.data.counts[51] == 1800.0,
+           "CHN reader peak channel value");
+
+    const ReaderResult chnOnSpe =
+        chnReader.tryRead(gf3Path, gf3Bytes);
+    expect(!chnOnSpe.matched,
+           "CHN reader rejects GF3 SPE by extension path logic elsewhere");
+
+    // Direct tryRead ignores extension; signature should reject GF3 payload.
+    // GF3 starts with ASCII-ish 'GF3' bytes, not int16 -1, so no match.
+    expect(!chnOnSpe.matched, "CHN reader rejects non-CHN binary");
+
     ReaderRegistry registry;
     registry.registerReader(
         std::unique_ptr<IReader>(new AsciiSPEReader()));
     registry.registerReader(
         std::unique_ptr<IReader>(new GF3Reader()));
+    registry.registerReader(
+        std::unique_ptr<IReader>(new OrtecCHNReader()));
 
     ReaderResult winner;
     std::string message;
@@ -103,6 +137,19 @@ int main() {
            "Registry selects GF3 winner");
     expect(winner.readerName.find("GF3") != std::string::npos,
            "GF3 winner name");
+
+    auto chnResults =
+        registry.runReaders(chnPath, ".chn", chnBytes);
+    expect(registry.chooseWinner(chnResults, winner, message),
+           "Registry selects CHN winner");
+    expect(winner.readerName.find("CHN") != std::string::npos,
+           "CHN winner name");
+
+    // SPE readers must not claim .chn files.
+    auto speReadersOnChn =
+        registry.runReaders(chnPath, ".chn", chnBytes);
+    expect(speReadersOnChn.size() == 1,
+           "Only CHN reader runs for .chn extension");
 
     GenericDetector detector;
     SpectrumData forced;
