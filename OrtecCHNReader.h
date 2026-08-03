@@ -1,13 +1,12 @@
-#ifndef UST_GF3_READER_H
-#define UST_GF3_READER_H
+#ifndef UST_ORTEC_CHN_READER_H
+#define UST_ORTEC_CHN_READER_H
 
 #include "IReader.h"
 
 namespace ust {
 
-// Validated GF3-like binary SPE:
-// fixed 40-byte header + float32 little-endian MCA channels
-class GF3Reader final : public IReader {
+// Ortec / Maestro binary .chn integer spectrum
+class OrtecCHNReader final : public IReader {
 public:
     std::string name() const override;
 

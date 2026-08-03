@@ -1,5 +1,22 @@
 #ifndef UST_ROOT_WRITER_H
 #define UST_ROOT_WRITER_H
+
 #include "SpectrumData.h"
-namespace ust { class RootWriter { public: static std::string defaultOutputPath(const std::string&); bool write(const SpectrumData&,const std::string&,bool drawSpectrum=true) const; }; }
+
+#include <string>
+
+namespace ust {
+
+class RootWriter {
+public:
+    static std::string defaultOutputPath(const std::string& inputPath);
+
+    bool write(
+        const SpectrumData& data,
+        const std::string& outputPath,
+        bool drawSpectrum = true) const;
+};
+
+} // namespace ust
+
 #endif
