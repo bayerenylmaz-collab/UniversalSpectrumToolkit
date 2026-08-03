@@ -7,3 +7,5 @@
 *.pdf
 *.log
 *~
+tests/test_readers
+*.o
