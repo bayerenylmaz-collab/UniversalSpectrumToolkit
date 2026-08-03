@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 namespace ust {
 
@@ -26,8 +27,7 @@ GenericCandidate GenericDetector::evaluate(
         headerBytes > rawBytes.size() ||
         channels >
             (rawBytes.size() - headerBytes) /
-            candidate.bytesPerValue) {
-
+                candidate.bytesPerValue) {
         return candidate;
     }
 
@@ -47,13 +47,21 @@ GenericCandidate GenericDetector::evaluate(
             type,
             order);
 
-        if (!std::isfinite(value)) continue;
+        if (!std::isfinite(value)) {
+            continue;
+        }
 
         ++finite;
 
-        if (value >= 0.0) ++nonNegative;
-        if (value == 0.0) ++zeros;
-        if (isIntegerLike(value)) ++integerLike;
+        if (value >= 0.0) {
+            ++nonNegative;
+        }
+        if (value == 0.0) {
+            ++zeros;
+        }
+        if (isIntegerLike(value)) {
+            ++integerLike;
+        }
 
         maximum = std::max(maximum, value);
         sum += value;
@@ -63,21 +71,16 @@ GenericCandidate GenericDetector::evaluate(
 
     candidate.finiteFraction =
         static_cast<double>(finite) / n;
-
     candidate.nonNegativeFraction =
         static_cast<double>(nonNegative) / n;
-
     candidate.integerLikeFraction =
         static_cast<double>(integerLike) / n;
-
     candidate.zeroFraction =
         static_cast<double>(zeros) / n;
-
     candidate.maximum = maximum;
     candidate.sum = sum;
 
     double score = 0.0;
-
     score += 35.0 * candidate.finiteFraction;
     score += 30.0 * candidate.nonNegativeFraction;
     score += 15.0 * candidate.integerLikeFraction;
@@ -86,9 +89,7 @@ GenericCandidate GenericDetector::evaluate(
         score += 10.0;
     }
 
-    if (sum > 0.0 &&
-        std::isfinite(sum) &&
-        sum < 1e18) {
+    if (sum > 0.0 && std::isfinite(sum) && sum < 1e18) {
         score += 5.0;
     }
 
@@ -101,9 +102,7 @@ GenericCandidate GenericDetector::evaluate(
         score += 2.0;
     }
 
-    candidate.structuralScore =
-        std::min(100.0, score);
-
+    candidate.structuralScore = std::min(100.0, score);
     return candidate;
 }
 
@@ -132,8 +131,7 @@ std::vector<GenericCandidate> GenericDetector::scan(
     std::vector<GenericCandidate> candidates;
 
     for (NumericType type : types) {
-        const std::size_t valueBytes =
-            bytesPerValue(type);
+        const std::size_t valueBytes = bytesPerValue(type);
 
         for (std::size_t channelCount : channels) {
             const std::size_t payload =
@@ -163,20 +161,16 @@ std::vector<GenericCandidate> GenericDetector::scan(
     }
 
     std::sort(
-        candidates.begin(), candidates.end(),
+        candidates.begin(),
+        candidates.end(),
         [](const GenericCandidate& a,
            const GenericCandidate& b) {
-
             if (a.structuralScore != b.structuralScore) {
-                return a.structuralScore >
-                       b.structuralScore;
+                return a.structuralScore > b.structuralScore;
             }
-
             if (a.headerBytes != b.headerBytes) {
-                return a.headerBytes <
-                       b.headerBytes;
+                return a.headerBytes < b.headerBytes;
             }
-
             return a.channels < b.channels;
         });
 
@@ -192,7 +186,9 @@ void GenericDetector::printCandidates(
         << "this extension/structure.\n"
         << "The generic detector found structurally "
         << "readable candidates.\n"
-        << "These are NOT automatic format decisions.\n\n";
+        << "These are NOT automatic format decisions.\n"
+        << "Pass forceGeneric=true only if you accept "
+        << "the top candidate as an explicit conversion.\n\n";
 
     std::cout
         << std::left
@@ -210,8 +206,7 @@ void GenericDetector::printCandidates(
         std::min(maxRows, candidates.size());
 
     for (std::size_t i = 0; i < rows; ++i) {
-        const GenericCandidate& candidate =
-            candidates[i];
+        const GenericCandidate& candidate = candidates[i];
 
         std::cout
             << std::left
@@ -231,9 +226,101 @@ void GenericDetector::printCandidates(
 
     std::cout
         << "\nConversion stopped safely because "
-        << "the format is unknown or ambiguous.\n"
-        << "A new registered reader can be added later, "
-        << "or a future explicit-layout interface can be used.\n";
+        << "the format is unknown or ambiguous.\n";
+}
+
+SpectrumData GenericDetector::materialize(
+    const std::string& path,
+    const std::vector<unsigned char>& rawBytes,
+    const GenericCandidate& candidate) const {
+
+    SpectrumData data;
+
+    data.counts.reserve(candidate.channels);
+
+    for (std::size_t i = 0; i < candidate.channels; ++i) {
+        data.counts.push_back(
+            decodeValue(
+                rawBytes.data() +
+                    candidate.headerBytes +
+                    candidate.bytesPerValue * i,
+                candidate.type,
+                candidate.order));
+    }
+
+    std::ostringstream reason;
+    reason
+        << "Forced generic conversion from best structural "
+        << "candidate (score="
+        << std::fixed << std::setprecision(2)
+        << candidate.structuralScore
+        << ", header=" << candidate.headerBytes
+        << ", channels=" << candidate.channels
+        << ", type=" << numericTypeName(candidate.type)
+        << ", order=" << byteOrderName(candidate.order)
+        << ").";
+
+    data.rawBytes = rawBytes;
+    data.sourceFile = path;
+    data.extension = extensionOf(path);
+    data.detectedFormat = "Forced generic binary layout";
+    data.readerName = "GenericDetector (forced)";
+    data.numericType = numericTypeName(candidate.type);
+    data.byteOrder = byteOrderName(candidate.order);
+    data.decisionReason = reason.str();
+    data.fileSize = rawBytes.size();
+    data.headerBytes = candidate.headerBytes;
+    data.channelCount = candidate.channels;
+    data.firstChannel = 0;
+    data.lastChannel =
+        candidate.channels > 0 ? candidate.channels - 1 : 0;
+    data.bytesPerValue = candidate.bytesPerValue;
+    data.readerScore = candidate.structuralScore;
+    data.valid = true;
+
+    return data;
+}
+
+bool GenericDetector::tryForceConvert(
+    const std::string& path,
+    const std::vector<unsigned char>& rawBytes,
+    SpectrumData& out,
+    std::string& reason,
+    double minScore) const {
+
+    const std::vector<GenericCandidate> candidates =
+        scan(rawBytes);
+
+    if (candidates.empty()) {
+        reason = "Generic detector found no candidates.";
+        return false;
+    }
+
+    const GenericCandidate& best = candidates.front();
+
+    if (best.structuralScore < minScore) {
+        std::ostringstream stream;
+        stream
+            << "Best generic candidate score "
+            << std::fixed << std::setprecision(2)
+            << best.structuralScore
+            << " is below threshold " << minScore << ".";
+        reason = stream.str();
+        return false;
+    }
+
+    if (best.finiteFraction < 0.999 ||
+        best.nonNegativeFraction < 0.99 ||
+        best.maximum <= 0.0) {
+        reason =
+            "Best generic candidate failed safety checks "
+            "(finite/non-negative/maximum).";
+        return false;
+    }
+
+    out = materialize(path, rawBytes, best);
+    reason = out.decisionReason;
+    return true;
 }
 
 } // namespace ust
