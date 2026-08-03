@@ -110,7 +110,7 @@ Notlar
 ------
 - Mumkunse etiketli ASCII Ortec SPE tercih edin; live/real time ve
   enerji kalibrasyonu tasir.
-- GF3 benzeri binary eslesme yapisal ve bilinçli olarak daha katidir.
+- GF3 benzeri binary eslesme yapisal ve bilincli olarak daha katidir.
 - Ortec CHN cogu zaman live/real time tasir; trailer'da egim varsa
   enerji kalibrasyonu da kullanilir.
 - Ham baytlar izlenebilirlik icin saklanir.
