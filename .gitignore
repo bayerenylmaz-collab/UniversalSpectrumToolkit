@@ -9,3 +9,7 @@
 *~
 tests/test_readers
 *.o
+
+# Large coincidence archive (keep local / download separately)
+coincidence_data/
+coincidence_fit/out/
