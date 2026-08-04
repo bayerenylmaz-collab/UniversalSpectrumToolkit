@@ -1,31 +1,34 @@
 // coincidence_delay_fit.C
- // Reproduce delay-scan coincidence fits in ROOT.
- //
- // Input layout (from the provided archive):
- //   <window>ns/CH<n>/delay_fit_w<window_ps>.txt
- //   columns: delay(ps)  coincidence
- //
- // Fit model (same as reference PNGs):
- //   f(x) = Baseline + Amplitude * exp(-0.5 * ((x-Mean)/Sigma)^2)
- //
- // Usage:
- //   source /opt/root/bin/thisroot.sh   # if needed
- //   root -l -b -q 'coincidence_delay_fit.C("path/to/extracted")'
- //
- // Outputs under coincidence_fit/out/<window>/<CH>/ :
- //   delay_fit_w*.png, delay_fit_params.txt
- // plus a global summary CSV.
+// Delay-scan coincidence fits in ROOT.
+//
+// Fit model (same as reference PNGs):
+//   f(x) = Baseline + Amplitude * exp(-0.5*((x-Mean)/Sigma)^2)
+//
+// IMPORTANT: this macro reads delay_fit_w*.txt  (NOT the .data spectra)
+//
+// Ubuntu example:
+//   1) Put this file next to your data, OR pass absolute paths.
+//   2) Data folder must CONTAIN directories like 500ns/, 1000ns/, ...
+//      Example tree:
+//        /home/you/coinc/500ns/CH1/delay_fit_w500000.txt
+//        /home/you/coinc/1000ns/CH1/delay_fit_w1000000.txt
+//   3) Run from the directory where this .C lives:
+//        root -l -b -q 'coincidence_delay_fit.C("/home/you/coinc","out")'
+//
+// If it fails, first run with no args to see diagnostics:
+//        root -l -b -q coincidence_delay_fit.C
 
 #include <TCanvas.h>
 #include <TF1.h>
 #include <TGraph.h>
-#include <TLatex.h>
+#include <TROOT.h>
 #include <TStyle.h>
 #include <TSystem.h>
 #include <TSystemDirectory.h>
 #include <TSystemFile.h>
 #include <TList.h>
 #include <TString.h>
+#include <TMath.h>
 
 #include <fstream>
 #include <iostream>
@@ -42,10 +45,43 @@ struct DelayPoint {
 
 struct FitJob {
   TString txtPath;
-  TString windowDir;   // e.g. 500ns
-  TString channelDir;  // e.g. CH1
-  TString windowPs;    // e.g. 500000
+  TString windowDir;
+  TString channelDir;
+  TString windowPs;
 };
+
+static void PrintTreeHint(const TString& rootDir)
+{
+  std::cout << "\nLooking under: " << rootDir << "\n";
+  std::cout << "Expected layout:\n"
+            << "  <dir>/500ns/CH1/delay_fit_w500000.txt\n"
+            << "  <dir>/1000ns/CH1/delay_fit_w1000000.txt\n"
+            << "  ...\n";
+
+  void* dir = gSystem->OpenDirectory(rootDir.Data());
+  if (!dir) {
+    std::cerr << "ERROR: cannot open directory: " << rootDir << "\n";
+    std::cerr << "Tip: use an absolute path, e.g. /home/USER/coinc\n";
+    return;
+  }
+
+  std::cout << "Contents of that directory:\n";
+  const char* entry = nullptr;
+  int n = 0;
+  while ((entry = gSystem->GetDirEntry(dir))) {
+    TString name = entry;
+    if (name == "." || name == "..") continue;
+    FileStat_t st;
+    const TString full = rootDir + "/" + name;
+    gSystem->GetPathInfo(full, st);
+    std::cout << "  " << (R_ISDIR(st.fMode) ? "[DIR] " : "      ") << name << "\n";
+    if (++n >= 40) {
+      std::cout << "  ...\n";
+      break;
+    }
+  }
+  gSystem->FreeDirectory(dir);
+}
 
 static bool ReadDelayFitTxt(const TString& path, std::vector<DelayPoint>& points)
 {
@@ -67,7 +103,7 @@ static bool ReadDelayFitTxt(const TString& path, std::vector<DelayPoint>& points
   return !points.empty();
 }
 
-static void CollectJobs(const TString& rootDir, std::vector<FitJob>& jobs)
+static void CollectJobsInDir(const TString& rootDir, std::vector<FitJob>& jobs)
 {
   TSystemDirectory top("top", rootDir);
   TList* windows = top.GetListOfFiles();
@@ -105,7 +141,6 @@ static void CollectJobs(const TString& rootDir, std::vector<FitJob>& jobs)
         job.txtPath = chPath + "/" + fname;
         job.windowDir = wname;
         job.channelDir = cname;
-        // delay_fit_w500000.txt -> 500000
         TString wp = fname;
         wp.ReplaceAll("delay_fit_w", "");
         wp.ReplaceAll(".txt", "");
@@ -114,11 +149,29 @@ static void CollectJobs(const TString& rootDir, std::vector<FitJob>& jobs)
       }
     }
   }
+}
 
-  std::sort(jobs.begin(), jobs.end(), [](const FitJob& a, const FitJob& b) {
-    if (a.windowDir != b.windowDir) return a.windowDir < b.windowDir;
-    return a.channelDir < b.channelDir;
-  });
+static void CollectJobs(const TString& rootDir, std::vector<FitJob>& jobs)
+{
+  jobs.clear();
+  CollectJobsInDir(rootDir, jobs);
+  if (!jobs.empty()) return;
+
+  // If user pointed one level too high/low, search one subdirectory deeper.
+  TSystemDirectory top("top", rootDir);
+  TList* entries = top.GetListOfFiles();
+  if (!entries) return;
+
+  TIter next(entries);
+  while (TSystemFile* e = (TSystemFile*)next()) {
+    const TString name = e->GetName();
+    if (!e->IsDirectory() || name == "." || name == "..") continue;
+    CollectJobsInDir(rootDir + "/" + name, jobs);
+    if (!jobs.empty()) {
+      std::cout << "Note: found data under " << rootDir << "/" << name << "\n";
+      break;
+    }
+  }
 }
 
 static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summary)
@@ -145,7 +198,6 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   }
   const double yMean = ySum / n;
 
-  // Same model as reference plots: Baseline + Amplitude * Gaus(x; Mean, Sigma)
   auto* fit = new TF1("fit_gaus_baseline",
                       "[0]*TMath::Exp(-0.5*((x-[1])/[2])*((x-[1])/[2]))+[3]",
                       points.front().delay, points.back().delay);
@@ -156,7 +208,6 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   fit->SetLineColor(kRed);
   fit->SetLineWidth(2);
 
-  // Seeds from edge baseline + half-maximum width (stable for top-hat curves)
   const int kEdge = std::max(3, n / 10);
   double edgeSum = 0.0;
   for (int i = 0; i < kEdge; ++i) edgeSum += points[i].coinc;
@@ -178,14 +229,12 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   const double xSpan = std::max(1.0, points.back().delay - points.front().delay);
 
   fit->SetParameters(ampSeed, meanSeed, sigmaSeed, baselineSeed);
-  fit->SetParLimits(0, 0.0, 50.0 * ampSeed);           // Amplitude >= 0
+  fit->SetParLimits(0, 0.0, 50.0 * ampSeed);
   fit->SetParLimits(1, points.front().delay - xSpan, points.back().delay + xSpan);
-  fit->SetParLimits(2, 1.0, 10.0 * xSpan);              // Sigma > 0
+  fit->SetParLimits(2, 1.0, 10.0 * xSpan);
   fit->SetParLimits(3, ymin - 5.0 * ampSeed, ymax + 5.0 * ampSeed);
 
-  // Equal weights (ROOT TGraph default) — matches reference chi2 values
   const int fitStatus = gr->Fit(fit, "Q");
-
   const double chi2 = fit->GetChisquare();
   const int ndf = fit->GetNDF();
   const double prob = fit->GetProb();
@@ -193,13 +242,10 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   const TString outDir = outRoot + "/" + job.windowDir + "/" + job.channelDir;
   gSystem->mkdir(outDir, true);
 
-  // Canvas styled close to the reference PNGs
   auto* c = new TCanvas(Form("c_%s_%s", job.windowDir.Data(), job.channelDir.Data()),
                         "coincidence delay fit", 1200, 800);
-  c->SetGrid(0, 0);
   c->SetTicks(1, 1);
 
-  // Include fit peak in the drawn Y range (Gaussian can overshoot the plateau)
   const double fitPeak = fit->GetParameter(3) + fit->GetParameter(0);
   const double yLo = std::min(ymin, fit->Eval(points.front().delay));
   const double yHi = std::max(ymax, fitPeak);
@@ -207,7 +253,6 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   gr->GetYaxis()->SetRangeUser(yLo - yPad, yHi + yPad);
   gr->Draw("APL");
   fit->Draw("SAME");
-
   gStyle->SetOptFit(1111);
   gStyle->SetOptStat(0);
 
@@ -251,23 +296,32 @@ static bool FitOne(const FitJob& job, const TString& outRoot, std::ostream& summ
   return true;
 }
 
-void coincidence_delay_fit(const char* dataRoot =
-                               "coincidence_data/extracted",
-                           const char* outRoot = "coincidence_fit/out")
+void coincidence_delay_fit(const char* dataRoot = ".",
+                           const char* outRoot = "out")
 {
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptFit(1111);
   gStyle->SetOptStat(0);
-  gStyle->SetTitleFontSize(0.04);
 
   TString inDir = dataRoot;
   TString outDir = outRoot;
+
+  // Expand ~ if present
+  if (inDir.BeginsWith("~")) {
+    inDir = TString(gSystem->HomeDirectory()) + inDir(1, inDir.Length() - 1);
+  }
+  if (outDir.BeginsWith("~")) {
+    outDir = TString(gSystem->HomeDirectory()) + outDir(1, outDir.Length() - 1);
+  }
+
   gSystem->mkdir(outDir, true);
 
   std::vector<FitJob> jobs;
   CollectJobs(inDir, jobs);
   if (jobs.empty()) {
-    std::cerr << "ERROR: no delay_fit_*.txt under " << inDir << "\n";
+    std::cerr << "ERROR: no delay_fit_*.txt found.\n";
+    PrintTreeHint(inDir);
+    std::cerr << "\nRemember: fit uses .txt files, not .data spectra.\n";
     return;
   }
 
