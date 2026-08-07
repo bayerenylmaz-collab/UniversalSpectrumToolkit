@@ -11,7 +11,7 @@ Presentation (Turkish, Beamer PDF)
 ENGLISH
 ================================================================
 
-CERN / lab helper for converting MCA spectrum files that ROOT cannot
+Lab helper for converting MCA spectrum files that ROOT cannot
 open natively into analysis-ready ROOT files.
 
 What it does
@@ -75,8 +75,7 @@ Sunum (Turkce Beamer PDF)
   Gorseller: docs/presentation/figures/
 
 ROOT'un dogrudan acamadigi MCA spektrum dosyalarini (ozellikle .spe
-ve .chn) analiz icin hazir ROOT dosyasina ceviren bir laboratuvar /
-CERN yardimci aracidir.
+ve .chn) analiz icin hazir ROOT dosyasina ceviren bir laboratuvar yardimci aracidir.
 
 Ne yapar?
 ---------
