@@ -9,3 +9,15 @@
 *~
 tests/test_readers
 *.o
+
+# Keep presentation deliverables tracked
+!docs/presentation/**/*.png
+!docs/presentation/**/*.pdf
+
+docs/presentation/*.aux
+docs/presentation/*.log
+docs/presentation/*.nav
+docs/presentation/*.out
+docs/presentation/*.toc
+docs/presentation/*.vrb
+docs/presentation/*.snm
