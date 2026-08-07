@@ -1,0 +1,42 @@
+UNIVERSAL SPECTRUM TOOLKIT - HIZLI BASLANGIC (TURKCE)
+====================================================
+
+ROOT bilmeseniz de kullanabilirsiniz.
+
+1) WSL / Ubuntu terminalini acin
+2) Bu klasore gidin:
+
+   cd ~/ROOT_TARLA/UniversalSpectrumToolkit
+
+   (kendi yolunuz farkliysa onu yazin)
+
+3) Menuyu baslatin:
+
+   ./ust_menu.sh
+
+4) Menuden secin:
+   1 = tek dosya
+   2 = klasor (toplu)
+   3 = orneklerle dene
+   4 = yardim
+   5 = cikis
+
+5) Dosya yolunu yapistirin, ornek:
+
+   /mnt/c/Users/PC/Desktop/spe/Eu152.spe
+
+Sonuc:
+- Ayni klasorde .root dosyasi olusur
+- Isterseniz spektrum ekranda cizilir
+
+
+ROOT bilenler icin klasik yol
+-----------------------------
+  root -l
+  .L universal_spectrum_to_root.C+
+  universal_spectrum_to_root("dosya.spe");
+
+
+Sunum
+-----
+  docs/presentation/ust_sunum.pdf
