@@ -25,9 +25,15 @@ ROOT bilmeseniz de kullanabilirsiniz.
 
    /mnt/c/Users/PC/Desktop/spe/Eu152.spe
 
+6) Sorulari cevaplayin:
+   - Spektrumu ekranda cizmek?   E = evet, h = hayir
+   - Logaritmik olcek (log-Y)?   E = log,  h = lineer
+   - forceGeneric?               genelde h
+
 Sonuc:
 - Ayni klasorde .root dosyasi olusur
-- Isterseniz spektrum ekranda cizilir
+- Isterseniz spektrum ekranda cizilir (log veya lineer)
+- Pencereyi kapatmak icin ROOT'ta: .q
 
 
 ROOT bilenler icin klasik yol

@@ -31,7 +31,8 @@ bool convertOne(
     const std::string& path,
     const std::string& outputPath,
     bool drawSpectrum,
-    bool forceGeneric) {
+    bool forceGeneric,
+    bool logY) {
 
     using namespace ust;
 
@@ -48,7 +49,11 @@ bool convertOne(
         << (extension.empty() ? "[none]" : extension) << '\n'
         << "File size  : " << rawBytes.size() << " bytes\n"
         << "Force generic : "
-        << (forceGeneric ? "yes" : "no") << '\n';
+        << (forceGeneric ? "yes" : "no") << '\n'
+        << "Draw spectrum : "
+        << (drawSpectrum ? "yes" : "no") << '\n'
+        << "Log-Y draw    : "
+        << (drawSpectrum && logY ? "yes" : "no") << '\n';
 
     ReaderRegistry registry;
     registry.registerReader(
@@ -104,7 +109,7 @@ bool convertOne(
 
         RootWriter writer;
         const bool ok =
-            writer.write(data, output, drawSpectrum);
+            writer.write(data, output, drawSpectrum, logY);
 
         std::cout
             << "============================================================\n\n";
@@ -158,7 +163,7 @@ bool convertOne(
 
     RootWriter writer;
     const bool ok =
-        writer.write(forced, output, drawSpectrum);
+        writer.write(forced, output, drawSpectrum, logY);
 
     std::cout
         << "============================================================\n\n";
@@ -172,11 +177,13 @@ bool convertOne(
 //   universal_spectrum_to_root("sample.spe");
 //   universal_spectrum_to_root("sample.spe", "out.root", false);
 //   universal_spectrum_to_root("unknown.spe", "", false, true);
+//   universal_spectrum_to_root("sample.spe", "", true, false, false); // linear draw
 void universal_spectrum_to_root(
     const char* inputPath,
     const char* outputPath = "",
     bool drawSpectrum = true,
-    bool forceGeneric = false) {
+    bool forceGeneric = false,
+    bool logY = true) {
 
     if (!inputPath || std::string(inputPath).empty()) {
         std::cerr << "ERROR: input path is empty.\n";
@@ -188,7 +195,8 @@ void universal_spectrum_to_root(
             std::string(inputPath),
             outputPath ? std::string(outputPath) : std::string(),
             drawSpectrum,
-            forceGeneric);
+            forceGeneric,
+            logY);
     } catch (const std::exception& error) {
         std::cerr << "ERROR: " << error.what() << '\n';
     }
@@ -239,7 +247,7 @@ void universal_spectrum_batch(
 
         try {
             const bool ok = convertOne(
-                fullPath, "", drawSpectrum, forceGeneric);
+                fullPath, "", drawSpectrum, forceGeneric, true);
             if (ok) {
                 ++converted;
             } else {
@@ -271,7 +279,8 @@ void universal_spectrum_help() {
         << "  universal_spectrum_to_root(\"file.spe\");\n"
         << "  universal_spectrum_to_root(\"file.chn\");\n"
         << "  universal_spectrum_to_root(\"file.spe\", \"out.root\", false);\n"
-        << "  universal_spectrum_to_root(\"file.spe\", \"\", false, true);  // force generic\n\n"
+        << "  universal_spectrum_to_root(\"file.spe\", \"\", false, true);  // force generic\n"
+        << "  universal_spectrum_to_root(\"file.spe\", \"\", true, false, false); // linear Y\n\n"
         << "Batch directory (*.spe, *.chn):\n"
         << "  universal_spectrum_batch(\"path/to/dir\");\n"
         << "  universal_spectrum_batch(\"path/to/dir\", false, true);\n\n"

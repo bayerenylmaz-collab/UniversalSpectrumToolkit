@@ -71,11 +71,14 @@ run_root_single() {
   local input_path="$1"
   local draw="$2"
   local force="$3"
+  local logy="${4:-1}"
 
   local draw_cpp="true"
   local force_cpp="false"
+  local logy_cpp="true"
   [[ "$draw" == "0" ]] && draw_cpp="false"
   [[ "$force" == "1" ]] && force_cpp="true"
+  [[ "$logy" == "0" ]] && logy_cpp="false"
 
   # Dosya yolundaki ozel karakterler icin guvenli kacis
   local escaped
@@ -84,6 +87,15 @@ run_root_single() {
   echo
   echo -e "${GREEN}Donusum baslatiliyor...${NC}"
   echo "Dosya : $input_path"
+  if [[ "$draw" == "1" ]]; then
+    if [[ "$logy" == "1" ]]; then
+      echo "Cizim  : logaritmik Y"
+    else
+      echo "Cizim  : lineer Y"
+    fi
+  else
+    echo "Cizim  : kapali"
+  fi
   echo
 
   # NOT: heredoc (<<EOF) kullanmiyoruz.
@@ -96,12 +108,12 @@ run_root_single() {
     echo
     root -l \
       -e ".L universal_spectrum_to_root.C+" \
-      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp});" \
+      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp}, ${logy_cpp});" \
       -e "cout << endl << \"Spektrum acik. Cikmak icin: .q\" << endl;"
   else
     root -l -q \
       -e ".L universal_spectrum_to_root.C+" \
-      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp});"
+      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp}, ${logy_cpp});"
   fi
 }
 
@@ -146,11 +158,21 @@ option_single() {
   fi
 
   local draw="1"
+  local logy="1"
   local force="0"
   if ask_yes_no "Spektrumu ekranda cizmek ister misiniz?" "e"; then
     draw="1"
+    echo
+    echo "  E = logaritmik Y ekseni (kucuk ve buyuk pikler birlikte gorunur)"
+    echo "  h = lineer Y ekseni"
+    if ask_yes_no "Logaritmik olcek (log-Y) kullanilsin mi?" "e"; then
+      logy="1"
+    else
+      logy="0"
+    fi
   else
     draw="0"
+    logy="0"
   fi
 
   if ask_yes_no "Bilinmeyen formatta zorla generic denensin mi? (genelde HAYIR)" "h"; then
@@ -158,7 +180,7 @@ option_single() {
     echo -e "${YELLOW}Uyari: forceGeneric risklidir; sadece bilerek kullanin.${NC}"
   fi
 
-  run_root_single "$path" "$draw" "$force"
+  run_root_single "$path" "$draw" "$force" "$logy"
 }
 
 option_batch() {
@@ -196,9 +218,9 @@ option_samples() {
   choice="$(echo "$choice" | tr '[:upper:]' '[:lower:]')"
 
   case "$choice" in
-    a) run_root_single "samples/ortec_ascii.spe" "1" "0" ;;
-    b) run_root_single "samples/gf3_like.spe" "1" "0" ;;
-    c) run_root_single "samples/ortec_demo.chn" "1" "0" ;;
+    a) run_root_single "samples/ortec_ascii.spe" "1" "0" "1" ;;
+    b) run_root_single "samples/gf3_like.spe" "1" "0" "1" ;;
+    c) run_root_single "samples/ortec_demo.chn" "1" "0" "1" ;;
     d) run_root_batch "samples" "0" ;;
     *) echo -e "${RED}Gecersiz secim.${NC}" ;;
   esac

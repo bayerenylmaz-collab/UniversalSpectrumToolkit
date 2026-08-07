@@ -38,7 +38,8 @@ std::string RootWriter::defaultOutputPath(
 bool RootWriter::write(
     const SpectrumData& data,
     const std::string& outputPath,
-    bool drawSpectrum) const {
+    bool drawSpectrum,
+    bool logY) const {
 
     if (!data.valid || data.counts.empty()) {
         std::cerr
@@ -280,11 +281,18 @@ bool RootWriter::write(
                 histogram.Clone("hUniversalSpectrumDisplay"));
 
         displayHistogram->SetDirectory(nullptr);
-        displayHistogram->SetMinimum(0.5);
         displayHistogram->SetStats(kFALSE);
 
         canvas->SetGrid();
-        canvas->SetLogy();
+
+        if (logY) {
+            displayHistogram->SetMinimum(0.5);
+            canvas->SetLogy(kTRUE);
+        } else {
+            displayHistogram->SetMinimum(0.0);
+            canvas->SetLogy(kFALSE);
+        }
+
         displayHistogram->Draw("hist");
         canvas->Modified();
         canvas->Update();
