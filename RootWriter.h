@@ -14,7 +14,8 @@ public:
     bool write(
         const SpectrumData& data,
         const std::string& outputPath,
-        bool drawSpectrum = true) const;
+        bool drawSpectrum = true,
+        bool logY = true) const;
 };
 
 } // namespace ust
