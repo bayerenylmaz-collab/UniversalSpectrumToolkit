@@ -86,12 +86,23 @@ run_root_single() {
   echo "Dosya : $input_path"
   echo
 
-  # -q yok: pencere/canvas acik kalsin, kullanici ROOT'tan .q ile cikabilir
-  root -l <<EOF
-.L universal_spectrum_to_root.C+
-universal_spectrum_to_root("${escaped}", "", ${draw_cpp}, ${force_cpp});
-cout << endl << "Islem bitti. Cikmak icin: .q" << endl;
-EOF
+  # NOT: heredoc (<<EOF) kullanmiyoruz.
+  # Heredoc bitince ROOT stdin kapanir, program cikar ve canvas kaybolur.
+  # Cizim isteniyorsa ROOT etkilesimli kalmali (-q olmadan).
+  if [[ "$draw" == "1" ]]; then
+    echo -e "${YELLOW}Spektrum penceresi acik kalacak.${NC}"
+    echo "Pencereyi inceledikten sonra ROOT'ta su komutu yazip Enter'a basin:"
+    echo -e "  ${BOLD}.q${NC}"
+    echo
+    root -l \
+      -e ".L universal_spectrum_to_root.C+" \
+      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp});" \
+      -e "cout << endl << \"Spektrum acik. Cikmak icin: .q\" << endl;"
+  else
+    root -l -q \
+      -e ".L universal_spectrum_to_root.C+" \
+      -e "universal_spectrum_to_root(\"${escaped}\", \"\", ${draw_cpp}, ${force_cpp});"
+  fi
 }
 
 run_root_batch() {
