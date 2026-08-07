@@ -102,8 +102,15 @@ Desteklenen okuyucular
 - GF3 benzeri binary SPE (40 bayt header + float32 little-endian)
 - Ortec binary CHN (32 bayt header + uint32 counts, opsiyonel enerji trailer)
 
-Hizli baslangic (WSL / Linux + ROOT)
-------------------------------------
+En kolay yol (menu - ROOT bilmeye gerek yok)
+--------------------------------------------
+  cd /path/to/UniversalSpectrumToolkit
+  ./ust_menu.sh
+
+  Ayrica bakiniz: BASLA.txt
+
+Klasik ROOT kullanimi
+---------------------
   cd /path/to/UniversalSpectrumToolkit
   root -l
   .L universal_spectrum_to_root.C+
