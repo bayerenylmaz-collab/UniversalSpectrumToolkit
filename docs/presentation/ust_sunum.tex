@@ -1,0 +1,303 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[turkish,shorthands=off]{babel}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{hyperref}
+
+\usetheme{default}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\definecolor{ustnavy}{HTML}{0B1F3A}
+\definecolor{ustteal}{HTML}{1F6F8B}
+\definecolor{ustaccent}{HTML}{C44900}
+\definecolor{ustgray}{HTML}{5C6B7A}
+\definecolor{ustgreen}{HTML}{1B7A4E}
+
+\setbeamercolor{structure}{fg=ustteal}
+\setbeamercolor{frametitle}{fg=ustnavy}
+\setbeamercolor{title}{fg=ustnavy}
+\setbeamercolor{subtitle}{fg=ustgray}
+\setbeamercolor{author}{fg=ustgray}
+\setbeamercolor{institute}{fg=ustgray}
+\setbeamercolor{date}{fg=ustgray}
+\setbeamercolor{item}{fg=ustteal}
+\setbeamercolor{block title}{fg=white,bg=ustteal}
+\setbeamercolor{block body}{fg=ustnavy,bg=ustnavy!4}
+\setbeamercolor{block title alerted}{fg=white,bg=ustaccent}
+\setbeamercolor{block body alerted}{fg=ustnavy,bg=ustaccent!8}
+\setbeamercolor{block title example}{fg=white,bg=ustgreen}
+\setbeamercolor{block body example}{fg=ustnavy,bg=ustgreen!8}
+
+\setbeamerfont{title}{series=\bfseries,size=\Large}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+
+\title{Universal Spectrum Toolkit}
+\subtitle{ROOT'un açamadığı spektrum dosyalarını analiz edilebilir hale getirmek}
+\author{Eren Yılmaz}
+\institute{Spektrum verisi $\rightarrow$ ROOT dönüştürücü}
+\date{2026}
+
+\begin{document}
+
+%---------------------------------------------------------------------
+\begin{frame}[plain]
+  \titlepage
+  \vspace{-0.6em}
+  \begin{center}
+    \small\textcolor{ustgray}{Kısa teknik sunum -- tasarım fikri, sorun ve çözüm}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Bu sunumda ne anlatılacak?}
+  \begin{enumerate}
+    \item ROOT tarafında sorun \textbf{neydi}? Neden \texttt{.spe} doğrudan işe yaramıyor?
+    \item Bu makro \textbf{ne düşünülerek} tasarlandı?
+    \item Makro sorunu \textbf{nasıl} çözüyor?
+    \item Desteklenen formatlar ve güvenli davranış
+    \item Önce / sonra: kör tahmin vs doğru okuma
+    \item Sonraki adım: daha kullanıcı dostu kullanım
+  \end{enumerate}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Sorun neydi?}
+  \begin{alertblock}{Kısa cevap}
+    ROOT bir analiz çerçevesidir; \texttt{.spe} / \texttt{.chn} ise cihaz/MCA spektrum formatıdır.
+    ROOT bu dosyayı \textbf{native spektrum nesnesi} olarak bilmez.
+  \end{alertblock}
+
+  \vspace{0.6em}
+  \textbf{Pratik sonuç:}
+  \begin{itemize}
+    \item Dosyayı ``açmak'' ile spektrumu ``doğru okumak'' aynı şey değildir
+    \item Histogram kendiliğinden oluşmaz
+    \item Kör binary tahmin gürültü / saçma değerler üretebilir
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{ROOT neden \texttt{.spe} açamıyor?}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{figures/01_sorun_neden.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Neden? Biraz daha teknik}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{ROOT ne bekler?}
+      \begin{itemize}
+        \item \texttt{.root} dosyası
+        \item \texttt{TH1}, \texttt{TTree} gibi nesneler
+        \item Yerleşik I/O ile tanımlı biçimler
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{\texttt{.spe} ise ne?}
+      \begin{itemize}
+        \item Ham bayt dizisi
+        \item Tek bir uluslararası standart değil
+        \item ASCII Ortec, GF3 binary, ...
+        \item Header + kanal count yapısı vendor'a göre değişir
+      \end{itemize}
+    \end{column}
+  \end{columns}
+
+  \vspace{1em}
+  \begin{block}{Özet}
+    ROOT spektrumu ``görmez''; çünkü dosyanın anlamını bilmez.
+    Bizim makro bu anlamı tanıyan \textbf{çevirici katmandır}.
+  \end{block}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Tasarım fikri neydi?}
+  \begin{center}
+    \includegraphics[width=0.98\textwidth]{figures/02_cozum_akisi.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Makro nasıl üstesinden geliyor?}
+  \begin{enumerate}
+    \item Dosyayı ham bayt olarak okur
+    \item Uzantıya uygun kayıtlı okuyucuları dener
+    \item Eşleşen formatı seçer (ASCII SPE / GF3-like / CHN)
+    \item \textbf{kanal $\rightarrow$ counts} dizisini çıkarır
+    \item ROOT'un anladığı nesnelere yazar:
+      \begin{itemize}
+        \item \texttt{TH1D hSpectrumChannel}
+        \item \texttt{TTree spectrum}
+        \item \texttt{conversion\_metadata}
+        \item ham baytlar (\texttt{raw/raw\_bytes})
+      \end{itemize}
+  \end{enumerate}
+
+  \vspace{0.4em}
+  \begin{exampleblock}{Kritik ilke}
+    Bilinmeyen formatı sessizce uydurmaz. Önce tanır, emin değilse raporlar.
+  \end{exampleblock}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Modüler mimari}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{figures/04_mimari.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Şu an ne okunur?}
+  \begin{center}
+    \includegraphics[width=0.92\textwidth]{figures/05_formatlar.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Makro yokken: kör tahmin}
+  \begin{alertblock}{Ne oluyor?}
+    Binary dosya spektrum formatı bilinmeden \texttt{uint16} veya \texttt{float32}
+    sanılırsa sonuç fiziksel olarak anlamsızlaşır.
+  \end{alertblock}
+
+  \vspace{0.5em}
+  \begin{itemize}
+    \item Yoğun gürültü zemini
+    \item Rastgele dikenler
+    \item $10^{18}$ mertebesinde saçma değerler
+  \end{itemize}
+
+  \vspace{0.6em}
+  \textcolor{ustgray}{\small Bu yüzden ``ROOT ile bir şekilde çizildi'' demek yeterli değildir; doğru layout şarttır.}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Önce / sonra karşılaştırması}
+  \begin{center}
+    \includegraphics[width=0.92\textwidth]{figures/03_once_sonra.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Makro varken: doğru spektrum}
+  \begin{center}
+    \includegraphics[width=0.88\textwidth]{figures/06_iyi_spektrum.png}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Gerçek kullanımda ne görüyoruz?}
+  \textbf{Örnek:} Eu-152 GF3-like binary SPE
+
+  \vspace{0.5em}
+  \begin{itemize}
+    \item Dosya boyutu: $\sim$65\,KB
+    \item Okuyucu kararı: \textbf{GF3-like binary SPE MATCH}
+    \item Kanal sayısı: 16384
+    \item Tip: \texttt{float32}, little-endian
+    \item Enerji kalibrasyonu: yok (dosyada taşınmıyorsa)
+    \item Çıktı: aynı isimli \texttt{.root} + histogram
+  \end{itemize}
+
+  \vspace{0.7em}
+  \begin{exampleblock}{Ekip testi}
+    Eu-152 ve Co-60 verilerinde spektrum şekli ve pik yapıları
+    beklenen fizikle uyumlu bulundu.
+  \end{exampleblock}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Ne okur / ne okumaz?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{Güvenilir}
+        \begin{itemize}
+          \item Ortec ASCII SPE
+          \item GF3-like binary SPE
+          \item Ortec binary CHN
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Otomatik garanti yok}
+        \begin{itemize}
+          \item Her vendor'ın her SPE türevi
+          \item Bozuk / eksik header
+          \item Tanımsız binary layout
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.8em}
+  \begin{center}
+    \textbf{Doğru ifade:} ``Laboratuvarda sık görülen SPE/CHN için genelde okur.''\\
+    \textcolor{ustgray}{``Dünyadaki her SPE'' demek doğru olmaz.}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}[fragile]{Nasıl kullanılır? (şimdiki hali)}
+\begin{verbatim}
+cd UniversalSpectrumToolkit
+root -l
+.L universal_spectrum_to_root.C+
+universal_spectrum_to_root("dosya.spe");
+universal_spectrum_to_root("dosya.chn");
+universal_spectrum_batch("klasor");
+\end{verbatim}
+
+  \vspace{0.6em}
+  \textcolor{ustgray}{Bu hali analiz için yeterli; fakat ROOT bilmeyen biri için hâlâ teknik.}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{İstenen sonraki adım: daha kullanıcı dostu}
+  \begin{block}{Hedef}
+    ROOT bilmeyen birinin de kullanabileceği basit menülü arayüz
+  \end{block}
+
+  \vspace{0.5em}
+  \textbf{Örnek akış:}
+  \begin{enumerate}
+    \item Scripti çalıştır
+    \item Menüden seç: tek dosya / klasör / yardım
+    \item Dosya yolunu gir
+    \item Spektrum ve \texttt{.root} hazır
+  \end{enumerate}
+
+  \vspace{0.5em}
+  Altta aynı güvenilir motor çalışır; üstte kullanım kolaylaşır.
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Özet}
+  \begin{itemize}
+    \item \textbf{Sorun:} ROOT \texttt{.spe}/\texttt{.chn} formatının anlamını bilmez
+    \item \textbf{Fikir:} Güvenli bir çevirici katmanı eklemek
+    \item \textbf{Çözüm:} Formatı tanı $\rightarrow$ counts çıkar $\rightarrow$ ROOT nesnesi yaz
+    \item \textbf{Kazanç:} Spektrum analizi ROOT ekosisteminde yapılabilir hale gelir
+    \item \textbf{Sonraki adım:} Menülü, daha kullanıcı dostu arayüz
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}[plain]
+  \begin{center}
+    \vspace{1.8cm}
+    {\Large\bfseries\textcolor{ustnavy}{Teşekkürler}}\\[0.8em]
+    {\large\textcolor{ustteal}{Universal Spectrum Toolkit}}\\[1.2em]
+    \textcolor{ustgray}{Sorular ve geliştirme önerileri için hazırız.}\\[1.5em]
+    \small\textcolor{ustgray}{Kaynak: \texttt{docs/presentation/}}
+  \end{center}
+\end{frame}
+
+\end{document}
