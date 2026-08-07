@@ -1,0 +1,13 @@
+Lutfen asagidaki dosya adlariyla bu klasore kaydedin / kopyalayin:
+
+01_menu.png              -> ust_menu.sh ekran goruntusu
+02_toolkit_match.png     -> UNIVERSAL SPECTRUM TOOLKIT GF3 MATCH ciktisi
+03_blind_spe.png         -> Blind SPE interpretation (kotu okuma)
+04_binary_probe.png      -> spe_binary_probe (hex + aday skorlari)  *** kritik ***
+05_converted_linear.png  -> Converted spectrum (lineer)
+06_converted_log.png     -> Converted spectrum (log-Y)
+07_co60_log.png          -> Co60 spectrum log (varsa; yoksa repodaki kullanilir)
+08_co60_linear.png       -> Co60 spectrum lineer (varsa; yoksa repodaki kullanilir)
+
+Not: Windows'tan WSL'e ornek:
+  cp /mnt/c/Users/PC/Desktop/*.png ~/ROOT_TARLA/UniversalSpectrumToolkit/docs/presentation/user_shots/
