@@ -262,7 +262,10 @@ void universal_spectrum_help() {
     std::cout
         << "\nUniversal Spectrum Toolkit\n"
         << "--------------------------\n"
-        << "Load:\n"
+        << "Easy menu (recommended for beginners):\n"
+        << "  ./ust_menu.sh\n"
+        << "  (see also BASLA.txt)\n\n"
+        << "Load in ROOT:\n"
         << "  .L universal_spectrum_to_root.C+\n\n"
         << "Single file:\n"
         << "  universal_spectrum_to_root(\"file.spe\");\n"
