@@ -1,6 +1,12 @@
 UNIVERSAL SPECTRUM TOOLKIT
 ==========================
 
+Presentation (Turkish, Beamer PDF)
+----------------------------------
+  docs/presentation/ust_sunum.pdf
+  Source: docs/presentation/ust_sunum.tex
+  Figures: docs/presentation/figures/
+
 ================================================================
 ENGLISH
 ================================================================
@@ -61,6 +67,12 @@ Notes
 ================================================================
 TURKCE
 ================================================================
+
+Sunum (Turkce Beamer PDF)
+-------------------------
+  docs/presentation/ust_sunum.pdf
+  Kaynak: docs/presentation/ust_sunum.tex
+  Gorseller: docs/presentation/figures/
 
 ROOT'un dogrudan acamadigi MCA spektrum dosyalarini (ozellikle .spe
 ve .chn) analiz icin hazir ROOT dosyasina ceviren bir laboratuvar /

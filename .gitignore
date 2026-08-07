@@ -9,3 +9,10 @@
 *~
 tests/test_readers
 *.o
+docs/presentation/*.aux
+docs/presentation/*.log
+docs/presentation/*.nav
+docs/presentation/*.out
+docs/presentation/*.toc
+docs/presentation/*.vrb
+docs/presentation/*.snm
