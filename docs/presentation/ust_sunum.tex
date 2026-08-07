@@ -187,24 +187,47 @@
 \end{frame}
 
 %---------------------------------------------------------------------
-\begin{frame}{Makro varken: doğru spektrum}
+\begin{frame}{Makro varken: doğru spektrum (illustratif)}
   \begin{center}
     \includegraphics[width=0.88\textwidth]{figures/06_iyi_spektrum.png}
   \end{center}
 \end{frame}
 
 %---------------------------------------------------------------------
+\begin{frame}{Gerçek sonuç: Co-60 (makro ile)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[width=\textwidth]{figures/co60_lineer.png}\\
+        \scriptsize lineer ölçek
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[width=\textwidth]{figures/co60_log.png}\\
+        \scriptsize log-Y ölçek
+      \end{center}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.4em}
+  \begin{exampleblock}{Ne görüyoruz?}
+    Aynı SPE dosyası makro ile ROOT histogramına dönüştürülmüş;
+    Co-60 pik yapısı net, spektrum analize hazır.
+  \end{exampleblock}
+\end{frame}
+
+%---------------------------------------------------------------------
 \begin{frame}{Gerçek kullanımda ne görüyoruz?}
-  \textbf{Örnek:} Eu-152 GF3-like binary SPE
+  \textbf{Örnek:} Eu-152 / Co-60 GF3-like binary SPE
 
   \vspace{0.5em}
   \begin{itemize}
-    \item Dosya boyutu: $\sim$65\,KB
     \item Okuyucu kararı: \textbf{GF3-like binary SPE MATCH}
-    \item Kanal sayısı: 16384
+    \item Tipik kanal sayısı: 16384
     \item Tip: \texttt{float32}, little-endian
-    \item Enerji kalibrasyonu: yok (dosyada taşınmıyorsa)
-    \item Çıktı: aynı isimli \texttt{.root} + histogram
+    \item Enerji kalibrasyonu: dosyada yoksa \texttt{no}
+    \item Çıktı: \texttt{.root} + \texttt{hSpectrumChannel}
   \end{itemize}
 
   \vspace{0.7em}
