@@ -3,15 +3,18 @@ Universal Spectrum Toolkit - Sunum
 
 Dosyalar
 --------
-- ust_sunum.tex   : Beamer kaynak dosyasi (Turkce)
-- ust_sunum.pdf   : Derlenmis sunum (18 slayt)
-- figures/        : Sunumda kullanilan sema ve karsilastirma gorselleri
+- ust_sunum.tex      : Beamer kaynak (Turkce)
+- ust_sunum.pdf      : Derlenmis sunum (Turkce)
+- ust_sunum_en.tex   : Beamer kaynak (English)
+- ust_sunum_en.pdf   : Compiled presentation (English)
+- user_shots/        : Gercek ekran goruntuleri
+- figures/           : Eski sema gorselleri (arsiv)
 
 PDF'i yeniden derlemek
 ----------------------
   cd docs/presentation
-  pdflatex ust_sunum.tex
-  pdflatex ust_sunum.tex
+  pdflatex ust_sunum.tex && pdflatex ust_sunum.tex
+  pdflatex ust_sunum_en.tex && pdflatex ust_sunum_en.tex
 
 Icerik ozeti
 ------------

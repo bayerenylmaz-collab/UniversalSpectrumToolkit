@@ -1,0 +1,313 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\definecolor{ustnavy}{HTML}{0B1F3A}
+\definecolor{ustteal}{HTML}{1F6F8B}
+\definecolor{ustaccent}{HTML}{8A2B0E}
+\definecolor{ustgray}{HTML}{4A5560}
+\definecolor{ustgreen}{HTML}{1B5E3B}
+
+\setbeamercolor{structure}{fg=ustteal}
+\setbeamercolor{frametitle}{fg=ustnavy}
+\setbeamercolor{title}{fg=ustnavy}
+\setbeamercolor{subtitle}{fg=ustgray}
+\setbeamercolor{author}{fg=ustgray}
+\setbeamercolor{institute}{fg=ustgray}
+\setbeamercolor{item}{fg=ustteal}
+\setbeamercolor{block title}{fg=white,bg=ustteal}
+\setbeamercolor{block body}{fg=ustnavy,bg=ustnavy!4}
+\setbeamercolor{block title alerted}{fg=white,bg=ustaccent}
+\setbeamercolor{block body alerted}{fg=ustnavy,bg=ustaccent!8}
+\setbeamercolor{block title example}{fg=white,bg=ustgreen}
+\setbeamercolor{block body example}{fg=ustnavy,bg=ustgreen!8}
+\setbeamerfont{title}{series=\bfseries,size=\Large}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+
+\newcommand{\shot}[2]{%
+  \IfFileExists{#1}{%
+    \includegraphics[width=#2\textwidth]{#1}%
+  }{%
+    \fbox{\begin{minipage}{0.88\textwidth}\centering\vspace{1.1cm}
+    \textbf{Image expected}\\[0.35em]
+    {\small\ttfamily\detokenize{#1}}\\[0.35em]
+    {\small Please add the file to \texttt{user\_shots/}.}
+    \vspace{1.1cm}\end{minipage}}%
+  }%
+}
+
+\title{Universal Spectrum Toolkit}
+\subtitle{Conversion of MCA spectrum files into ROOT analysis objects}
+\author{Eren Yılmaz}
+\institute{Technical presentation}
+\date{2026}
+
+\begin{document}
+
+%---------------------------------------------------------------------
+\begin{frame}[plain]
+  \titlepage
+  \vspace{-0.4em}
+  \begin{center}
+    \small\textcolor{ustgray}{Problem definition, methodological approach, implementation, and usage}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Outline}
+  \begin{enumerate}
+    \item Problem definition: why ROOT cannot process \texttt{.spe} files as spectra
+    \item Incorrect reading: the result of interpreting data without a known layout
+    \item Method: the logic constructed to resolve the binary structure
+    \item Mathematical decision: scoring of layout hypotheses
+    \item Application output and validation
+    \item Usage: menu-based interface
+  \end{enumerate}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Problem definition}
+  \begin{alertblock}{Core problem}
+    ROOT is an analysis framework. Its expected data model consists of
+    \texttt{.root} files, \texttt{TH1}, \texttt{TTree}, and built-in I/O definitions.
+    MCA-produced \texttt{.spe}/\texttt{.chn} files, by contrast, are raw byte sequences.
+  \end{alertblock}
+
+  \vspace{0.5em}
+  \textbf{Consequence:}
+  \begin{itemize}
+    \item Physically opening a file does not imply correctly reading a spectrum.
+    \item \texttt{.spe} is not a single international standard.
+    \item Header size, numeric type, and byte order vary by vendor.
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{File content without the macro}
+  \begin{center}
+    \shot{user_shots/03_blind_spe.png}{0.78}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{What this evidence demonstrates}
+  \begin{itemize}
+    \item Opening the file as text does not produce a readable spectrum.
+    \item The hex dump reveals only a limited header signature
+          (\texttt{DataR\_CH}).
+    \item Ortec ASCII tags (\texttt{\$DATA}, \texttt{\$ENER\_FIT}, \ldots)
+          are absent; therefore text-based reading is invalid.
+  \end{itemize}
+
+  \vspace{0.7em}
+  \begin{block}{Conclusion}
+    The problem is not printing the file to the screen. The problem is
+    assigning the correct \textbf{semantic mapping} to the byte sequence:
+    header offset, numeric type, channel count, and the counts array.
+  \end{block}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Methodological idea}
+  \begin{exampleblock}{Central approach}
+    Rather than interpreting the file directly as a spectrum, first resolve
+    the binary layout through systematic hypotheses; then encode the
+    validated layout in software as an explicit rule.
+  \end{exampleblock}
+
+  \vspace{0.6em}
+  \textbf{Three-step reasoning:}
+  \begin{enumerate}
+    \item Inspect the raw file at the byte level
+    \item Generate and score candidate layout hypotheses
+    \item Convert the winning layout into a channel--counts array, then into a ROOT object
+  \end{enumerate}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Resolving the binary structure}
+  \begin{center}
+    \shot{user_shots/04_binary_probe.png}{0.90}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Mathematical decision model}
+  Given a file size $S$, each hypothesis is defined by:
+
+  \[
+  H = S - N\cdot B
+  \]
+
+  \begin{itemize}
+    \item $N$: assumed channel count (e.g.\ $16384$)
+    \item $B$: bytes per value (e.g.\ $B=4$ for \texttt{float32})
+    \item $H$: header offset (e.g.\ $H=40 \Rightarrow S=65576$)
+  \end{itemize}
+
+  \vspace{0.3em}
+  The payload is decoded with the selected type and endianness; candidates are scored by:
+  \begin{itemize}
+    \item \texttt{finite}: fraction of finite values
+    \item \texttt{negative}: fraction of negative values (unexpected in spectra)
+    \item \texttt{smoothness}: physical consistency of the sequence
+    \item \texttt{score}: composite decision metric
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Transferring this logic into code}
+  \begin{block}{Discovery stage}
+    The probe output shows that the highest-scoring layout for the sample data is\\
+    $H=40$, $N=16384$, \texttt{float32}.
+  \end{block}
+
+  \vspace{0.5em}
+  \begin{exampleblock}{Production rule}
+    This layout is not left as a random guess.\\
+    It is converted into a validated reader rule in code:\\
+    header + channel count + numeric type + byte order.
+  \end{exampleblock}
+
+  \vspace{0.5em}
+  \textbf{Result:} The software no longer reads the file by speculation,\\
+  but through a previously validated semantic model.
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Validation of the conversion}
+  \begin{center}
+    \shot{user_shots/02_toolkit_match.png}{0.90}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Meaning of the decision output}
+  \begin{itemize}
+    \item The ASCII reader does not match: the file is not text.
+    \item The GF3-like reader matches: $40$-byte header + \texttt{float32} LE.
+    \item Channel count: $16384$
+    \item Produced objects:
+      \begin{itemize}
+        \item \texttt{TH1D hSpectrumChannel}
+        \item \texttt{TTree spectrum}
+        \item \texttt{conversion\_metadata}
+        \item raw-byte archive
+      \end{itemize}
+  \end{itemize}
+
+  \vspace{0.5em}
+  \begin{block}{Summary}
+    The raw byte sequence has been converted, in a controlled manner,
+    into a spectrum object that ROOT can analyze.
+  \end{block}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Successful conversion output}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \shot{user_shots/05_converted_linear.png}{1.0}\\
+      \scriptsize Linear scale
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \shot{user_shots/06_converted_log.png}{1.0}\\
+      \scriptsize Logarithmic scale
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Real-data validation: Co-60}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \shot{user_shots/08_co60_linear.png}{1.0}\\
+      \scriptsize Linear
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \shot{user_shots/07_co60_log.png}{1.0}\\
+      \scriptsize Logarithmic
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}[fragile]{Usage}
+  The tool is operated through a menu interface that does not require
+  knowledge of ROOT commands.
+
+  \vspace{0.6em}
+  \begin{verbatim}
+cd UniversalSpectrumToolkit
+./ust_menu.sh
+  \end{verbatim}
+
+  \vspace{0.4em}
+  Menu options:
+  \begin{enumerate}
+    \item Convert a single file
+    \item Batch-convert all files in a directory
+    \item Try with sample files
+    \item Help
+    \item Exit
+  \end{enumerate}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Menu workflow}
+  \begin{center}
+    \shot{user_shots/01_menu.png}{0.88}
+  \end{center}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Decision points in the menu}
+  \begin{itemize}
+    \item Draw the spectrum on screen: Yes / No
+    \item Scale selection: logarithmic Y / linear Y
+    \item Forced generic attempt for unknown formats: disabled by default
+  \end{itemize}
+
+  \vspace{0.7em}
+  \begin{exampleblock}{Design principle}
+    The user provides only the file path and visualization preferences.\\
+    Format recognition and conversion proceed through validated rules.
+  \end{exampleblock}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Conclusions}
+  \begin{enumerate}
+    \item ROOT does not treat \texttt{.spe} content as a native spectrum model.
+    \item Reading without a known layout produces physically invalid results.
+    \item The solution is resolving the binary layout by hypothesis--score--validation.
+    \item The validated layout is encoded as a rule; the output is a ROOT analysis object.
+    \item Usage is possible through the menu interface without ROOT expertise.
+  \end{enumerate}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}[plain]
+  \begin{center}
+    \vspace{2.2cm}
+    {\Large\bfseries\textcolor{ustnavy}{Thank you for your attention.}}\\[1.4em]
+    {\large\textcolor{ustgray}{Respectfully}}\\[1.2em]
+    {\normalsize\textcolor{ustteal}{Turkish Accelerator \& Radiation Laboratory / Physics Engineer}}
+  \end{center}
+\end{frame}
+
+\end{document}
