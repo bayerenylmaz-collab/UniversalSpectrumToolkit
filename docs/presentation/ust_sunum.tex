@@ -93,37 +93,27 @@
 \end{frame}
 
 %---------------------------------------------------------------------
-\begin{frame}{Makro olmaksızın yapılan okuma denemesi}
+\begin{frame}{Makro olmaksızın dosya içeriği}
   \begin{center}
-    \shot{user_shots/03_blind_spe.png}{0.86}
+    \shot{user_shots/03_blind_spe.png}{0.78}
   \end{center}
 \end{frame}
 
 %---------------------------------------------------------------------
 \begin{frame}{Bu görüntü neyi kanıtlar?}
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \textbf{uint16 LE varsayımı}
-      \begin{itemize}
-        \item Yoğun gürültü zemini
-        \item Fiziksel olarak anlamsız dikenler
-        \item Spektrum yapısı oluşmaz
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \textbf{float32 LE varsayımı}
-      \begin{itemize}
-        \item $10^{18}$ mertebesinde değerler
-        \item Görselleştirilemeyen çıktı
-        \item Yanlış layout / yanlış hizalama
-      \end{itemize}
-    \end{column}
-  \end{columns}
+  \begin{itemize}
+    \item Dosya metin olarak açıldığında okunabilir spektrum üretmez.
+    \item Hex dökümünde yalnızca sınırlı header izi görünür
+          (\texttt{DataR\_CH}).
+    \item Ortec ASCII etiketleri (\texttt{\$DATA}, \texttt{\$ENER\_FIT}, \ldots)
+          bulunmaz; dolayısıyla metin tabanlı okuma geçersizdir.
+  \end{itemize}
 
-  \vspace{0.8em}
+  \vspace{0.7em}
   \begin{block}{Çıkarım}
-    Sorun ``dosyayı çizmek'' değildir. Sorun, bayt dizisine doğru
-    \textbf{anlam haritasını} vermektir.
+    Sorun dosyayı ekrana basmak değildir. Sorun, bayt dizisine doğru
+    \textbf{anlam haritasını} vermektir: header ofseti, sayısal tip,
+    kanal sayısı ve counts dizisi.
   \end{block}
 \end{frame}
 
@@ -162,16 +152,16 @@
   \begin{itemize}
     \item $N$: varsayılan kanal sayısı (ör.\ $16384$)
     \item $B$: değer başına bayt (ör.\ \texttt{float32} için $B=4$)
-    \item $H$: header ofseti (ör.\ $H=40$)
+    \item $H$: header ofseti (ör.\ $H=40 \Rightarrow S=65576$)
   \end{itemize}
 
-  \vspace{0.4em}
-  Payload, $[H,\ S)$ aralığında seçilen tip ve endianness ile çözülür.
-  Elde edilen dizi fiziksel spektrum olma olasılığına göre skorlanır:
+  \vspace{0.3em}
+  Payload seçilen tip ve endianness ile çözülür; adaylar skorlanır:
   \begin{itemize}
-    \item sonlu değer oranı
-    \item negatif olmama oranı
-    \item düzgünlük / tutarlılık ölçütleri
+    \item \texttt{finite}: sonlu değer oranı
+    \item \texttt{negative}: negatif oran (spektrumda beklenmez)
+    \item \texttt{smoothness}: dizinin fiziksel tutarlılığı
+    \item \texttt{score}: bileşik karar metriği
   \end{itemize}
 \end{frame}
 
