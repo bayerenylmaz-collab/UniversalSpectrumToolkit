@@ -176,7 +176,8 @@ def main(argv):
     if not files:
         print("HDTV .spe bulunamadi.")
         print('Ornek: python hdtv_to_gf3.py "C:\\Users\\PC\\Desktop\\27Si_17_tab_hdtv.spe"')
-        print("Betige .spe dosyasini vermeyin. O komut dosyayi acmaya calisir.")
+        print("python.exe dosya.spe yazmayin.")
+        print("O komut spektrumu program sanir ve null bytes hatasi verir.")
         return 1
     rows = [convert(path) for path in files]
     save_report(rows)
