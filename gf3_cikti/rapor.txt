@@ -1,0 +1,50 @@
+GF3 SPE cikti kaydi
+
+Bu klasordeki .spe dosyalari GF3 formatindadir.
+GF3 bunlari iki Fortran kaydi olarak okur:
+  kayit 1: 8 bayt isim, kanal sayisi, 1, 1, 1
+  kayit 2: kanal sayisi kadar float32 sayim
+Her kaydin basi ve sonu, kaydin bayt uzunlugudur.
+
+Dosyalar gfortran unformatted READ ile acildi.
+Ayni READ, GF3'un WSPEC yaziminin tersidir:
+  READ kayit1 isim, kanal, 1, 1, 1
+  READ kayit2 sayimlar
+Kucuk bir denemede gfortran WRITE ciktisi ile bu yazicinin
+urettigi dosya bayt bayt ayniydi.
+
+dosya: 23Mg_17_gf3.spe
+  kaynak: 23Mg_17_tab_hdtv.spe
+  isim: 23Mg_17_
+  kanal: 16384
+  baslik tam sayilari: 1 1 1
+  kayit 1 uzunlugu: 24 bayt
+  kayit 2 uzunlugu: 65536 bayt
+  dosya boyu: 65576 bayt
+  ilk kanal: 340.0
+  en kucuk: 116.0
+  en buyuk: 113710.0
+
+dosya: 27Si_17_gf3.spe
+  kaynak: 27Si_17_tab_hdtv.spe
+  isim: 27Si_17_
+  kanal: 16384
+  baslik tam sayilari: 1 1 1
+  kayit 1 uzunlugu: 24 bayt
+  kayit 2 uzunlugu: 65536 bayt
+  dosya boyu: 65576 bayt
+  ilk kanal: 422.0
+  en kucuk: 129.0
+  en buyuk: 101550.0
+
+dosya: 31S_17_gf3.spe
+  kaynak: 31S_17_tab_hdtv.spe
+  isim: 31S_17_t
+  kanal: 16384
+  baslik tam sayilari: 1 1 1
+  kayit 1 uzunlugu: 24 bayt
+  kayit 2 uzunlugu: 65536 bayt
+  dosya boyu: 65576 bayt
+  ilk kanal: 300.0
+  en kucuk: 127.0
+  en buyuk: 95110.0
